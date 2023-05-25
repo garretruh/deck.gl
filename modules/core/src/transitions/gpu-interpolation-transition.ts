@@ -159,10 +159,37 @@ void main(void) {
 }
 `;
 
+// Modified shader that handles longitude wrap-around for position attributes.
+const posVs = `
+#define SHADER_NAME interpolation-transition-position-vertex-shader
+
+uniform float time;
+attribute ATTRIBUTE_TYPE aFrom;
+attribute ATTRIBUTE_TYPE aTo;
+varying ATTRIBUTE_TYPE vCurrent;
+
+void main(void) {
+  ATTRIBUTE_TYPE currentPosition = aFrom;
+  ATTRIBUTE_TYPE targetPosition = aTo;
+
+  // Adjust longitude transition at the antimeridian
+  if (abs(targetPosition.x - currentPosition.x) > 180.0) {
+    if (targetPosition.x < 0.0)
+      targetPosition.x += 360.0;
+    else
+      targetPosition.x -= 360.0;
+  }
+
+  vCurrent = mix(currentPosition, targetPosition, time);
+  gl_Position = vec4(0.0);
+}
+`;
+
 function getTransform(gl: WebGLRenderingContext, attribute: Attribute): LumaTransform {
   const attributeType = getAttributeTypeFromSize(attribute.size);
+  const shader = attribute.id === 'instancePositions' ? posVs : vs;
   return new Transform(gl, {
-    vs,
+    vs: shader,
     defines: {
       ATTRIBUTE_TYPE: attributeType
     },
